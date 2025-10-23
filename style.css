@@ -1,0 +1,117 @@
+body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+    background-color: #f4f4f4;
+}
+
+.container {
+    width: 90%;
+    max-width: 500px;
+    margin: 20px auto;
+    padding: 20px;
+    background-color: #fff;
+    border-radius: 8px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+.form-grup {
+    margin-bottom: 15px;
+}
+
+label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: bold;
+}
+
+input[type="text"] {
+    width: 100%;
+    padding: 8px;
+    box-sizing: border-box; 
+    border: 1px solid #ccc;
+    border-radius: 4px;
+}
+
+input:disabled {
+    background-color: #eee;
+    cursor: not-allowed;
+}
+
+/* (BARU) Style untuk membungkus input dan tombol */
+.input-with-button {
+    display: flex;
+    align-items: center;
+    gap: 5px; /* Jarak antara input dan tombol */
+}
+
+/* (BARU) Input di dalam .input-with-button tidak perlu 100% */
+.input-with-button input[type="text"] {
+    width: auto;
+    flex-grow: 1; /* Input akan mengisi sisa ruang */
+}
+
+/* (BARU) Style untuk tombol lokasi */
+#location-button {
+    padding: 8px 12px;
+    font-size: 16px;
+    border: 1px solid #ccc;
+    background-color: #f0f0f0;
+    cursor: pointer;
+    border-radius: 4px;
+}
+
+#location-button:hover {
+    background-color: #e0e0e0;
+}
+
+/* Tombol Hitung utama */
+button#calc-button {
+    width: 100%;
+    padding: 10px;
+    background-color: #007BFF;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 16px;
+}
+
+button#calc-button:hover {
+    background-color: #0056b3;
+}
+
+#result {
+    margin-top: 20px;
+    padding: 10px;
+    background-color: #e9f5ff;
+    border: 1px solid #b3d7ff;
+    border-radius: 4px;
+    font-size: 1.1em;
+    text-align: center;
+    min-height: 50px; 
+}
+
+#map {
+    height: 400px;
+    width: 90%;
+    max-width: 500px;
+    margin: 20px auto;
+    border-radius: 8px;
+    cursor: crosshair; 
+}
+
+/* Style untuk label harga */
+#result .price-label {
+    display: block; 
+    margin-top: 10px;
+    font-size: 1.1em;
+    color: #333;
+}
+
+/* Style untuk nilai harga */
+#result .price-value {
+    font-size: 1.5em; 
+    font-weight: bold;
+    color: #28a745; 
+}
