@@ -15,7 +15,7 @@ const homeCoords = [-6.242476645426871, 107.07192446114526];
 
 // --- (Logika Harga) ---
 const BASE_FEE = 20000; // Biaya Dasar Panggilan (Rp 20.000)
-const COST_PER_KM_ROUND_TRIP = 2500; // Biaya per KM Pulang Pergi (Rp 1.500)
+const COST_PER_KM_ROUND_TRIP = 1800; // Biaya per KM Pulang Pergi (Rp 1.800)
 // --- (Selesai) ---
 
 // Ambil elemen-elemen DOM
@@ -236,3 +236,4 @@ map.on('click', async function(e) {
     toInput.value = locationName;
     await calculateAndDrawRoute(homeCoords, toCoords, locationName);
 });
+
