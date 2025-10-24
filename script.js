@@ -6,35 +6,35 @@ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
 }).addTo(map);
 
-// Variabel untuk menyimpan marker dan rute
+// Variabel untuk menyimpan marker, rute, dan hasil pencarian
 let startMarker, endMarker, routePolyline;
+let searchResultsList = []; 
 
 // KOORDINAT RUMAH ANDA (Lat, Lon)
 const homeCoords = [-6.242476645426871, 107.07192446114526];
 
-// Tentukan biaya ongkir per kilometer
-const COST_PER_KM = 4000; // Rp 4.000 per km
+// --- (Logika Harga) ---
+const BASE_FEE = 20000; // Biaya Dasar Panggilan (Rp 20.000)
+const COST_PER_KM_ROUND_TRIP = 2500; // Biaya per KM Pulang Pergi (Rp 1.500)
+// --- (Selesai) ---
 
 // Ambil elemen-elemen DOM
-const fromInput = document.getElementById('from-input');
 const toInput = document.getElementById('to-input');
 const calcButton = document.getElementById('calc-button');
 const resultDiv = document.getElementById('result');
-// (BARU) Ambil tombol lokasi
 const locationButton = document.getElementById('location-button');
 
 /**
- * Fungsi Geocoding (Nama Lokasi -> Koordinat)
+ * Fungsi Geocoding (Nama Lokasi -> Daftar Koordinat)
  */
-async function getCoords(locationName) {
+async function searchLocations(locationName) {
     try {
-        const response = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(locationName)}&format=json&limit=1`);
+        const response = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(locationName)}&format=json&limit=5`);
         const data = await response.json();
-        if (data.length > 0) return [data[0].lat, data[0].lon]; 
-        return null;
+        return data;
     } catch (error) {
         console.error("Error geocoding:", error);
-        return null;
+        return [];
     }
 }
 
@@ -72,6 +72,7 @@ async function getRoute(fromCoords, toCoords) {
 }
 
 /**
+ * (REVISI LOGIKA PEMBULATAN)
  * Fungsi inti untuk menghitung dan menggambar rute + ongkir
  */
 async function calculateAndDrawRoute(fromCoords, toCoords, destinationName) {
@@ -83,31 +84,51 @@ async function calculateAndDrawRoute(fromCoords, toCoords, destinationName) {
         return;
     }
 
-    const distanceInKm = route.distance / 1000;
-    const duration = (route.duration / 60).toFixed(0);
-    const totalCost = distanceInKm * COST_PER_KM;
+    // --- (PERUBAHAN LOGIKA PERHITUNGAN) ---
+    const distanceInKm = route.distance / 1000; // Jarak sekali jalan
+    const duration = (route.duration / 60).toFixed(0); // Waktu sekali jalan
+    const roundTripDistance = distanceInKm * 2;
+    const distanceCost = roundTripDistance * COST_PER_KM_ROUND_TRIP;
 
+    // 1. Hitung Subtotal (biaya sebelum pembulatan)
+    const subtotalCost = BASE_FEE + distanceCost;
+
+    // 2. (BARU) Bulatkan total biaya ke ribuan terdekat
+    const totalCost = Math.round(subtotalCost / 1000) * 1000;
+    
+    // 3. Format angka untuk ditampilkan
     const formattedDistance = distanceInKm.toFixed(2);
-    const formattedCost = new Intl.NumberFormat('id-ID', {
-        style: 'currency',
-        currency: 'IDR',
-        minimumFractionDigits: 0
-    }).format(totalCost);
+    const formattedBaseFee = new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(BASE_FEE);
+    const formattedDistanceCost = new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(distanceCost);
+    // (BARU) Format subtotal
+    const formattedSubtotal = new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(subtotalCost);
+    // Format total yang sudah dibulatkan
+    const formattedCost = new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(totalCost);
 
+    // 4. (BARU) Tampilkan hasil dengan rincian subtotal
     resultDiv.innerHTML = `
-        <strong>Jarak:</strong> ${formattedDistance} km<br>
-        <strong>Perkiraan Waktu:</strong> ${duration} menit<br>
-        <strong class="price-label">Estimasi Ongkir:</strong>
+        <strong>Jarak (Sekali Jalan):</strong> ${formattedDistance} km<br>
+        <strong>Perkiraan Waktu (Sekali Jalan):</strong> ${duration} menit<br>
+        <div class="cost-breakdown">
+            <strong>Biaya Dasar:</strong> ${formattedBaseFee}<br>
+            <strong>Biaya Jarak (${roundTripDistance.toFixed(2)} km PP):</strong> ${formattedDistanceCost}<br>
+            <strong>Subtotal:</strong> ${formattedSubtotal}
+        </div>
+        <strong class="price-label">Total Ongkir (Dibulatkan):</strong>
         <span class="price-value">${formattedCost}</span>
     `;
+    // --- (SELESAI PERUBAHAN) ---
 
+    // Hapus marker dan rute lama
     if (startMarker) map.removeLayer(startMarker);
     if (endMarker) map.removeLayer(endMarker);
     if (routePolyline) map.removeLayer(routePolyline);
 
+    // Tambahkan marker baru
     startMarker = L.marker(fromCoords).addTo(map).bindPopup(`<b>Dari:</b> Rumah Anda`);
     endMarker = L.marker(toCoords).addTo(map).bindPopup(`<b>Ke:</b> ${destinationName}`).openPopup();
 
+    // Gambar rute di peta
     const routeCoordinates = route.geometry.coordinates.map(coord => [coord[1], coord[0]]);
     routePolyline = L.polyline(routeCoordinates, {color: 'blue'}).addTo(map);
     map.fitBounds(routePolyline.getBounds());
@@ -115,6 +136,7 @@ async function calculateAndDrawRoute(fromCoords, toCoords, destinationName) {
 
 /**
  * Fungsi yang menangani klik tombol "Hitung"
+ * (Tidak berubah)
  */
 async function handleSearch() {
     const toLocation = toInput.value;
@@ -122,44 +144,72 @@ async function handleSearch() {
         resultDiv.innerHTML = "Harap isi lokasi tujuan di kotak pencarian.";
         return;
     }
+    
     resultDiv.innerHTML = "Mencari lokasi...";
-    const toCoords = await getCoords(toLocation);
-    if (!toCoords) {
-        resultDiv.innerHTML = "Lokasi tujuan tidak ditemukan.";
+    
+    const results = await searchLocations(toLocation);
+    searchResultsList = results; 
+
+    if (!results || results.length === 0) {
+        resultDiv.innerHTML = "Lokasi tujuan tidak ditemukan. Coba kata kunci lain.";
         return;
     }
-    await calculateAndDrawRoute(homeCoords, toCoords, toLocation);
+
+    if (results.length === 1) {
+        const result = results[0];
+        const toCoords = [result.lat, result.lon];
+        await calculateAndDrawRoute(homeCoords, toCoords, result.display_name);
+        return;
+    }
+
+    let optionsHtml = "<strong>Kami menemukan beberapa lokasi. Silakan pilih:</strong>";
+    results.forEach((result, index) => {
+        optionsHtml += `
+            <button class="location-option" data-index="${index}">
+                ${result.display_name}
+            </button>
+        `;
+    });
+    resultDiv.innerHTML = optionsHtml;
 }
 
 /**
- * (BARU) Fungsi yang menangani klik tombol "Lokasi Saya 📍"
+ * Event listener untuk menangani klik pada tombol pilihan
+ * (Tidak berubah)
+ */
+resultDiv.addEventListener('click', async function(e) {
+    if (e.target && e.target.classList.contains('location-option')) {
+        const index = e.target.dataset.index;
+        const selectedResult = searchResultsList[index]; 
+        
+        if (selectedResult) {
+            const toCoords = [selectedResult.lat, selectedResult.lon];
+            toInput.value = selectedResult.display_name; 
+            await calculateAndDrawRoute(homeCoords, toCoords, selectedResult.display_name);
+        }
+    }
+});
+
+
+/**
+ * Fungsi yang menangani klik tombol "Lokasi Saya 📍"
+ * (Tidak berubah)
  */
 async function handleGetLocation() {
     if (!navigator.geolocation) {
         resultDiv.innerHTML = "Browser Anda tidak mendukung Geolocation.";
         return;
     }
-
     resultDiv.innerHTML = "Meminta lokasi Anda...";
-
     navigator.geolocation.getCurrentPosition(
         async (position) => {
-            // Sukses mendapatkan lokasi
             const toCoords = [position.coords.latitude, position.coords.longitude];
-            
             resultDiv.innerHTML = "Mencari nama alamat...";
-            
-            // Ubah koordinat jadi alamat
             const locationName = await reverseGeocode(toCoords);
-            
-            // Masukkan alamat ke input "Ke"
             toInput.value = locationName;
-
-            // Langsung hitung rute dan ongkir
             await calculateAndDrawRoute(homeCoords, toCoords, locationName);
         },
         (error) => {
-            // Gagal mendapatkan lokasi
             if (error.code === error.PERMISSION_DENIED) {
                 resultDiv.innerHTML = "Anda menolak izin lokasi. Izinkan di pengaturan browser Anda.";
             } else {
@@ -172,11 +222,12 @@ async function handleGetLocation() {
 // Tambahkan event listener ke tombol Hitung
 calcButton.addEventListener('click', handleSearch);
 
-// (BARU) Tambahkan event listener ke tombol Lokasi Saya
+// Tambahkan event listener ke tombol Lokasi Saya
 locationButton.addEventListener('click', handleGetLocation);
 
 /**
  * Fungsi yang menangani klik pada Peta
+ * (Tidak berubah)
  */
 map.on('click', async function(e) {
     const toCoords = [e.latlng.lat, e.latlng.lng];
